@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     }
 
     // โหลดข้อมูลจากไฟล์ yamsamtar.json
-    const filePath = path.join(process.cwd(), "api", "yamsamtar.json");
+    const filePath = path.join(process.cwd(), "data", "yamsamtar.json");
     const jsonData = await fs.readFile(filePath, "utf-8");
     const data = JSON.parse(jsonData);
 
