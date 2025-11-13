@@ -1,37 +1,3 @@
-import path from "path";
-import fs from "fs/promises";
-
-/**
- * Utility: หายามตามเวลา
- */
-function getYamByTime(yamHours, timeStr) {
-  const [hour, minute] = timeStr.split(":").map(Number);
-  const totalMinutes = hour * 60 + minute;
-
-  for (const [yam, range] of Object.entries(yamHours)) {
-    const [startH, startM] = range.start.split(":").map(Number);
-    const [endH, endM] = range.end.split(":").map(Number);
-
-    const startTotal = startH * 60 + startM;
-    const endTotal = endH * 60 + endM;
-
-    if (startTotal <= totalMinutes && totalMinutes <= endTotal) {
-      return yam;
-    }
-  }
-  return null;
-}
-
-/**
- * Utility: หายามถัดไป (ตาที่สาม)
- */
-function getNextYam(currentYam, yams) {
-  const idx = yams.indexOf(currentYam);
-  if (idx === -1) return yams[0]; // fallback
-  const nextIdx = (idx + 1) % yams.length;
-  return yams[nextIdx];
-}
-
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -41,10 +7,34 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { day, time } = req.query;
+    const { day, time, birth } = req.query; // เพิ่ม birth สำหรับวันเกิด
 
     if (!day || !time) {
       return res.status(400).json({ error: "กรุณาระบุวัน (day) และเวลา (time)" });
+    }
+
+    // ตรวจสอบและแปลงวันเกิดเป็น ค.ศ.
+    let correctedBirth = null;
+    if (birth) {
+      const birthDate = new Date(birth);
+      if (isNaN(birthDate.getTime())) {
+        return res.status(400).json({ error: "รูปแบบวันเกิดไม่ถูกต้อง" });
+      }
+
+      let year = birthDate.getUTCFullYear();
+      if (year > 2400) {
+        year -= 543; // แปลงจาก พ.ศ. เป็น ค.ศ.
+      }
+
+      correctedBirth = new Date(
+        Date.UTC(
+          year,
+          birthDate.getUTCMonth(),
+          birthDate.getUTCDate(),
+          birthDate.getUTCHours(),
+          birthDate.getUTCMinutes()
+        )
+      );
     }
 
     // โหลดข้อมูลจากไฟล์ yamsamtar.json
@@ -75,7 +65,7 @@ export default async function handler(req, res) {
     // ส่งผลลัพธ์กลับ
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(200).json({
-      input: { day, time },
+      input: { day, time, birth: correctedBirth ? correctedBirth.toISOString() : null },
       current_yam: yam,
       current_result: {
         name: resultName,
